@@ -279,6 +279,32 @@ async function joinInterestGroup(test, uuid, interestGroupOverrides = {},
     async () => { await navigator.leaveAdInterestGroup(interestGroup) });
 }
 
+// Helper function to join the given interest group and then leave it during
+// test cleanup.
+async function joinInterestGroupAndLeaveOnCleanup(test, interestGroup, durationSeconds = 60) {
+  await navigator.joinAdInterestGroup(interestGroup, durationSeconds);
+  test.add_cleanup(
+      async () => {await navigator.leaveAdInterestGroup(interestGroup)});
+}
+
+// Joins a negative interest group with the specified owner, name, and
+// additionalBidKey. Because these are the only valid fields for a negative
+// interest groups, this function doesn't expose an 'overrides' parameter.
+// Adds cleanup command to `test` to leave the interest group when the test
+// completes.
+async function joinNegativeInterestGroup(
+    test, owner, name, additionalBidKey) {
+  let interestGroup = JSON.stringify({
+    owner: owner,
+    name: name,
+    additionalBidKey: additionalBidKey
+  });
+  let iframe = await createIframe(test, owner, 'join-ad-interest-group');
+  await runInFrame(
+    test, iframe,
+    `await joinInterestGroupAndLeaveOnCleanup(test_instance, ${interestGroup})`);
+}
+
 // Similar to joinInterestGroup, but leaves the interest group instead.
 // Generally does not need to be called manually when using
 // "joinInterestGroup()".
@@ -722,6 +748,46 @@ function createAdditionalBid(uuid, auctionNonce, seller, buyer, interestGroupNam
     auctionNonce: auctionNonce,
     seller: seller,
     ...additionalBidOverrides
+  }
+}
+
+// Gets the testMetadata for an additional bid, initializing it if needed.
+function getAndMaybeInitializeTestMetadata(additionalBid) {
+  if (additionalBid.testMetadata === undefined) {
+    additionalBid.testMetadata = {};
+  }
+  return additionalBid.testMetadata;
+}
+
+// Tells the additional bid endpoint to correctly sign the additional bid with
+// the given secret keys before returning that as a signed additional bid.
+function signWithSecretKeys(additionalBid, secretKeys) {
+  getAndMaybeInitializeTestMetadata(additionalBid).
+      secretKeysForValidSignatures = secretKeys;
+}
+
+// Tells the additional bid endpoint to incorrectly sign the additional bid with
+// the given secret keys before returning that as a signed additional bid. This
+// is used for testing the behavior when the auction encounters an invalid
+// signature.
+function incorrectlySignWithSecretKeys(additionalBid, secretKeys) {
+  getAndMaybeInitializeTestMetadata(additionalBid).
+      secretKeysForInvalidSignatures = secretKeys;
+}
+
+// Adds a single negative interest group to an additional bid, as described at:
+// https://github.com/WICG/turtledove/blob/main/FLEDGE.md#622-how-additional-bids-specify-their-negative-interest-groups
+function addNegativeInterestGroup(additionalBid, negativeInterestGroup) {
+  additionalBid["negativeInterestGroup"] = negativeInterestGroup;
+}
+
+// Adds multiple negative interest groups to an additional bid, as described at:
+// https://github.com/WICG/turtledove/blob/main/FLEDGE.md#622-how-additional-bids-specify-their-negative-interest-groups
+function addNegativeInterestGroups(additionalBid, negativeInterestGroups,
+                                   joiningOrigin) {
+  additionalBid["negativeInterestGroups"] = {
+    joiningOrigin: joiningOrigin,
+    interestGroupNames: negativeInterestGroups
   }
 }
 

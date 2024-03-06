@@ -10,15 +10,8 @@
 // This file contains tests for additional bids and negative targeting.
 //
 // TODO:
-// - test that an negatively targeted additional bid is suppressed.
-// - test that an incorrectly signed additional bid is not negative targeted.
-// - test that an missing-signature additional bid is not negative targeted.
-// - test that an additional bid with some correct signatures can be negative.
-//       negative targeted for those negative interest groups whose signatures
-//       match.
-// - test an additional bid with multiple negative interest groups.
-// - test that multiple negative interest groups with mismatched joining origins
-//       is not negative targeted.
+// - test that an additional bid with some correct signatures can be negative
+//       targeted for those negative interest groups whose signatures match.
 // - test that additional bids can be fetched using an iframe navigation.
 // - test that additional bids are not fetched using an iframe navigation for
 //      which the `adAuctionHeaders=true` attribute is not specified.
@@ -80,6 +73,9 @@
 // for ad auction headers interception to associate it with this auction.
 const SINGLE_SELLER_AUCTION_SELLER = window.location.origin;
 
+const ADDITIONAL_BID_SECRET_KEY = 'nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A=';
+const ADDITIONAL_BID_PUBLIC_KEY = '11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=';
+
 // Single-seller auction with a single buyer who places a single additional
 // bid. As the only bid, this wins.
 subsetTest(promise_test, async test => {
@@ -134,7 +130,6 @@ subsetTest(promise_test, async test => {
   const additionalBid2 = createAdditionalBid(
       uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
 
-
   await runAdditionalBidTest(
     test, uuid, [buyer1, buyer2], auctionNonce,
     Promise.all([
@@ -144,3 +139,158 @@ subsetTest(promise_test, async test => {
     /*highestScoringOtherBid=*/1.99,
     /*winningAdditionalBidId=*/'planes');
 }, 'two valid additional bids from two distinct Fetch requests');
+
+// Single-seller auction with a two buyers competing with additional bids.
+// The higher of these has a negative interest group specified, and that
+// negative interest group has been joined, so the lower bid wins.
+subsetTest(promise_test, async test => {
+  const uuid = generateUuid(test);
+  const auctionNonce = await navigator.createAuctionNonce();
+  const seller = SINGLE_SELLER_AUCTION_SELLER;
+
+  const negativeInterestGroupName = 'already-owns-a-plane';
+
+  const buyer1 = OTHER_ORIGIN1;
+  const additionalBid1 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer1, 'horses', 1.99);
+
+  const buyer2 = OTHER_ORIGIN2;
+  const additionalBid2 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
+  addNegativeInterestGroup(additionalBid2, negativeInterestGroupName);
+  signWithSecretKeys(additionalBid2, [ADDITIONAL_BID_SECRET_KEY]);
+
+  await joinNegativeInterestGroup(
+      test, buyer2, negativeInterestGroupName, ADDITIONAL_BID_PUBLIC_KEY);
+
+  await runAdditionalBidTest(
+    test, uuid, [buyer1, buyer2], auctionNonce,
+    fetchAdditionalBids(seller, [additionalBid1, additionalBid2]),
+    /*highestScoringOtherBid=*/0,
+    /*winningAdditionalBidId=*/'horses');
+}, 'higher additional bid is negative targeted, lower additional bid win');
+
+// Same as above, except that the bid is missing a signature, so that the
+// negative targeting interest group is ignored, and the higher bid, which
+// would have otherwise been negative targeted, wins.
+subsetTest(promise_test, async test => {
+  const uuid = generateUuid(test);
+  const auctionNonce = await navigator.createAuctionNonce();
+  const seller = SINGLE_SELLER_AUCTION_SELLER;
+
+  const negativeInterestGroupName = 'already-owns-a-plane';
+
+  const buyer1 = OTHER_ORIGIN1;
+  const additionalBid1 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer1, 'horses', 1.99);
+
+  const buyer2 = OTHER_ORIGIN2;
+  const additionalBid2 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
+  addNegativeInterestGroup(additionalBid2, negativeInterestGroupName);
+
+  await joinNegativeInterestGroup(
+      test, buyer2, negativeInterestGroupName, ADDITIONAL_BID_PUBLIC_KEY);
+
+  await runAdditionalBidTest(
+    test, uuid, [buyer1, buyer2], auctionNonce,
+    fetchAdditionalBids(seller, [additionalBid1, additionalBid2]),
+    /*highestScoringOtherBid=*/1.99,
+    /*winningAdditionalBidId=*/'planes');
+}, 'higher additional bid is negative targeted, but it is missing a ' +
+   'signature, so it still wins');
+
+// Same as above, except that the bid is signed incorrectly, so that the
+// negative targeting interest group is ignored, and the higher bid, which
+// would have otherwise been negative targeted, wins.
+subsetTest(promise_test, async test => {
+  const uuid = generateUuid(test);
+  const auctionNonce = await navigator.createAuctionNonce();
+  const seller = SINGLE_SELLER_AUCTION_SELLER;
+
+  const negativeInterestGroupName = 'already-owns-a-plane';
+
+  const buyer1 = OTHER_ORIGIN1;
+  const additionalBid1 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer1, 'horses', 1.99);
+
+  const buyer2 = OTHER_ORIGIN2;
+  const additionalBid2 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
+  addNegativeInterestGroup(additionalBid2, negativeInterestGroupName);
+  incorrectlySignWithSecretKeys(additionalBid2, [ADDITIONAL_BID_SECRET_KEY]);
+
+  await joinNegativeInterestGroup(
+      test, buyer2, negativeInterestGroupName, ADDITIONAL_BID_PUBLIC_KEY);
+
+  await runAdditionalBidTest(
+    test, uuid, [buyer1, buyer2], auctionNonce,
+    fetchAdditionalBids(seller, [additionalBid1, additionalBid2]),
+    /*highestScoringOtherBid=*/1.99,
+    /*winningAdditionalBidId=*/'planes');
+}, 'higher additional bid is negative targeted, but it has an invalid ' +
+   'signature, so it still wins');
+
+// A test of an additional bid with multiple negative interest groups.
+subsetTest(promise_test, async test => {
+  const uuid = generateUuid(test);
+  const auctionNonce = await navigator.createAuctionNonce();
+  const seller = SINGLE_SELLER_AUCTION_SELLER;
+
+  const negativeInterestGroupName1 = 'already-owns-a-plane';
+  const negativeInterestGroupName2 = 'another-negative-interest-group';
+
+  const buyer1 = OTHER_ORIGIN1;
+  const additionalBid1 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer1, 'horses', 1.99);
+
+  const buyer2 = OTHER_ORIGIN2;
+  const additionalBid2 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
+  addNegativeInterestGroups(
+      additionalBid2, [negativeInterestGroupName1, negativeInterestGroupName2],
+      /*joiningOrigin=*/window.location.origin);
+  signWithSecretKeys(additionalBid2, [ADDITIONAL_BID_SECRET_KEY]);
+
+  await joinNegativeInterestGroup(
+      test, buyer2, negativeInterestGroupName1, ADDITIONAL_BID_PUBLIC_KEY);
+
+  await runAdditionalBidTest(
+    test, uuid, [buyer1, buyer2], auctionNonce,
+    fetchAdditionalBids(seller, [additionalBid1, additionalBid2]),
+    /*highestScoringOtherBid=*/0,
+    /*winningAdditionalBidId=*/'horses');
+}, 'higher additional bid is negative targeted by two negative interest ' +
+   'groups, and since one is on the device, the lower bid wins');
+
+// Same as above, but with a mismatched joining origin.
+subsetTest(promise_test, async test => {
+  const uuid = generateUuid(test);
+  const auctionNonce = await navigator.createAuctionNonce();
+  const seller = SINGLE_SELLER_AUCTION_SELLER;
+
+  const negativeInterestGroupName1 = 'already-owns-a-plane';
+  const negativeInterestGroupName2 = 'another-negative-interest-group';
+
+  const buyer1 = OTHER_ORIGIN1;
+  const additionalBid1 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer1, 'horses', 1.99);
+
+  const buyer2 = OTHER_ORIGIN2;
+  const additionalBid2 = createAdditionalBid(
+      uuid, auctionNonce, seller, buyer2, 'planes', 2.99);
+  addNegativeInterestGroups(
+      additionalBid2, [negativeInterestGroupName1, negativeInterestGroupName2],
+      /*joiningOrigin=*/OTHER_ORIGIN1);
+  signWithSecretKeys(additionalBid2, [ADDITIONAL_BID_SECRET_KEY]);
+
+  await joinNegativeInterestGroup(
+      test, buyer2, negativeInterestGroupName1, ADDITIONAL_BID_PUBLIC_KEY);
+
+  await runAdditionalBidTest(
+    test, uuid, [buyer1, buyer2], auctionNonce,
+    fetchAdditionalBids(seller, [additionalBid1, additionalBid2]),
+    /*highestScoringOtherBid=*/1.99,
+    /*winningAdditionalBidId=*/'planes');
+}, 'higher additional bid is negative targeted by two negative interest ' +
+   'groups, but because of a joining origin mismatch, it still wins');
