@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Display: reading-order-items with value grid-order with CSS order property</title>
+<link rel="help" href="https://drafts.csswg.org/css-display-4/#reading-order-items">
+<link rel="author" title="Di Zhang" href="mailto:dizhangg@chromium.org">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="resources/focus-utils.js"></script>
+
+<style>
+.wrapper {
+  display: grid;
+  reading-order-items: grid-order;
+}
+</style>
+
+<button id="start">Item Start</button>
+<div class="wrapper" id="wrapper">
+  <button id="b" style="order: 2">Item B</button>
+  <button id="c">Item C</button>
+  <button id="d">Item D</button>
+</div>
+<div class="wrapper" id="wrapper">
+  <button id="e">Item E</button>
+  <button id="f" style="order: -1">Item F</button>
+</div>
+<button id="end">Item End</button>
+
+<script>
+
+promise_test(async () => {
+  start.focus();
+  assert_equals(document.activeElement, start);
+
+  await navigateFocusForward();
+  assert_equals(document.activeElement, c);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, d);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, b);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, f);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, e);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, end);
+}, `Verifies focus order for reading-order-items: grider-order with order property set.`);
+
+</script>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Display: reading-order-items with value grid-order in nested grids</title>
+<link rel="help" href="https://drafts.csswg.org/css-display-4/#reading-order-items">
+<link rel="author" title="Di Zhang" href="mailto:dizhangg@chromium.org">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="resources/focus-utils.js"></script>
+
+<style>
+.wrapper .box {
+  display: grid;
+  reading-order-items: grid-order;
+}
+
+.box {
+  border-radius: 5px;
+  padding: 20px;
+  border-style: dashed;
+}
+
+</style>
+<div class="wrapper" id="w" tabindex="0">
+  <div class="box" id="a" tabindex="0">A
+    <div class="box" id="b" tabindex="0">B</div>
+  </div>
+  <div class="box" id="c" tabindex="0">C
+    <div class="box" id="d" tabindex="0">D
+      <div class="box" id="e" tabindex="0" style="order: 2">E</div>
+      <div class="box" id="f" tabindex="0" style="order: 1">F</div>
+      <div class="box" id="g" tabindex="0" style="order: 1">G</div>
+    </div>
+  </div>
+</div>
+
+<script>
+promise_test(async () => {
+  w.focus();
+  assert_equals(document.activeElement, w);
+
+  await navigateFocusForward();
+  assert_equals(document.activeElement, a);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, b);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, c);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, d);
+  await navigateFocusBackward();
+  assert_equals(document.activeElement, f);
+  await navigateFocusBackward();
+  assert_equals(document.activeElement, g);
+  await navigateFocusBackward();
+  assert_equals(document.activeElement, e);
+}, `Verifies focus order for reading-order-items: grider-order with grids inside grids.`);
+
+</script>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Display: reading-order-items with value grid-order with CSS order property and tabindex attribute</title>
+<link rel="help" href="https://drafts.csswg.org/css-display-4/#reading-order-items">
+<link rel="author" title="Di Zhang" href="mailto:dizhangg@chromium.org">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="resources/focus-utils.js"></script>
+
+<style>
+.wrapper {
+  display: grid;
+  reading-order-items: grid-order;
+}
+</style>
+
+<button id="start" tabindex="1">Item Start</button>
+<div class="wrapper" id="wrapper1">
+  <!-- Layout will be A | C | B -->
+  <!-- Tab order will be A -> C -> B -->
+  <button id="a1" tabindex="2" style="order: -1">Item A</button>
+  <button id="b1" tabindex="3" style="order: 0">Item B</button>
+  <button id="c1" tabindex="3" style="order: -1">Item C</button>
+</div>
+<div class="wrapper" id="wrapper2">
+  <!-- Layout will be C | B | A -->
+  <!-- Tab order will be A -> C -> B -->
+  <button id="a2" tabindex="3" style="order: 1">Item A</button>
+  <button id="b2" tabindex="4" style="order: 0">Item B</button>
+  <button id="c2" tabindex="4" style="order: -1">Item C</button>
+</div>
+<button id="end" tabindex="5">Item End</button>
+
+<script>
+
+promise_test(async () => {
+  start.focus();
+  assert_equals(document.activeElement, start);
+
+  await navigateFocusForward();
+  assert_equals(document.activeElement, a1);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, c1);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, b1);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, a2);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, c2);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, b2);
+  await navigateFocusForward();
+  assert_equals(document.activeElement, end);
+}, `Verifies focus order for reading-order-items: grider-order with order property and tabindex set.`);
+
+</script>
