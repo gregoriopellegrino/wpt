@@ -15,6 +15,7 @@ const select = document.querySelector("select");
 for (let i = 0; i < 4; i++) {
     const option = document.createElement("option");
     option.textContent = `Option ${i + 1}`;
+	option.addEventListener("click", function(e) {this.selected = true;}); // in case clicking it deselected it
     select.appendChild(option);
 }
 
