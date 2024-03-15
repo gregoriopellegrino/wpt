@@ -2102,3 +2102,24 @@
     @assert ctx.strokeStyle === 'color(srgb 0.5 0 0.5)';
     ctx.strokeStyle = "color-mix(in srgb, red, color(srgb 1 0 0))";
     @assert ctx.strokeStyle === 'color(srgb 1 0 0)';
+
+- name: 2d.gradient.colormix
+  desc: color-mix works as CanvasGradient color input
+  canvasType: ['HtmlCanvas']
+  code: |
+    var g = ctx.createLinearGradient(0, 0, 100, 0);
+    g.addColorStop(0, 'color-mix(in srgb, #0f0, #00f)');
+    g.addColorStop(1, 'color-mix(in srgb, #0f0, #00f)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 100, 50);
+    @assert pixel 25,25 ==~ 0,128,128,255 +/- 3;
+    @assert pixel 50,25 ==~ 0,128,128,255 +/- 3;
+    @assert pixel 75,25 ==~ 0,128,128,255 +/- 3;
+  expected: |
+    size 100 50
+    g = cairo.LinearGradient(0, 0, 100, 0)
+    g.add_color_stop_rgb(0, 0,0.5,0.5)
+    g.add_color_stop_rgb(1, 0,0.5,0.5)
+    cr.set_source(g)
+    cr.rectangle(0, 0, 100, 50)
+    cr.fill()
