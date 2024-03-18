@@ -43,15 +43,20 @@ const tests = [
     descriptor: {dataType: 'float32', dimensions: [3, 0]}
   },
   {
+    testName:
+        '[input] Throw if the value of any element in dimensions is outside the \'unsigned long\' value range',
+    name: 'input',
+    // https://webidl.spec.whatwg.org/#idl-unsigned-long
+    // The unsigned long type is an unsigned integer type that has values in the
+    // range [0, 4294967295].
+    descriptor: {dataType: 'float32', dimensions: [2 ** 32]}
+  },
+  {
     testName: '[input] Throw if the number of elements is too large',
     name: 'input',
     descriptor: {
       dataType: 'float32',
-      dimensions: [
-        // Refer to
-        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length
-        2 ** 33 + 1
-      ]
+      dimensions: [2 ** 32 - 1, 2 ** 32 - 1, 2 ** 32 - 1]
     }
   }
 ];
