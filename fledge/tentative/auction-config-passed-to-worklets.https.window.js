@@ -206,3 +206,9 @@ makeTest({
               [{width: ' 100', height: '200.50px '},
                {width: ' 70.00sh ', height: '80.50sw'}]}
 });
+
+makeTest({
+  name: 'AuctionConfig.reportingTimeout with positive within-cap value.',
+  fieldName: 'reportingTimeout',
+  fieldValue: 100,
+});
