@@ -3,26 +3,43 @@
 // likely to vary between browsers so tests shouldn't rely on an exact scale
 // factor.
 //
-// Simulates two fingers, 100px apart, pulling apart vertically to 200px of
-// separation.
-function pinchZoomIn() {
+// Simulates two fingers, 100px apart, pulling apart (for zoom-in) or together
+// (for zoom-out) vertically to 200px or 100px of separation respectively.
+function pinchZoom(zoom_in = true) {
   const viewport = window.visualViewport;
   const center_x = Math.floor((viewport.width * viewport.scale) / 2);
   const center_y = Math.floor((viewport.height * viewport.scale) / 2);
 
+  const finger1_start = zoom_in ? center_y - 50 : center_y - 100;
+  const finger1_end = zoom_in ? center_y - 100 : center_y - 50;
+
+  const finger2_start = zoom_in ? center_y + 50 : center_y + 100;
+  const finger2_end = zoom_in ? center_y + 100 : center_y + 50;
   return new test_driver.Actions()
       .setContext(window)
       .addPointer("finger1", "touch")
       .addPointer("finger2", "touch")
-      .pointerMove(center_x, center_y-50, {origin: "viewport", sourceName: "finger1"})
-      .pointerMove(center_x, center_y+50, {origin: "viewport", sourceName: "finger2"})
+      .pointerMove(center_x, finger1_start,
+        {origin: "viewport", sourceName: "finger1"})
+      .pointerMove(center_x, finger2_start,
+        {origin: "viewport", sourceName: "finger2"})
       .pointerDown({sourceName: "finger1"})
       .pointerDown({sourceName: "finger2"})
-      .pointerMove(center_x, center_y-100, {origin: "viewport", sourceName: "finger1"})
-      .pointerMove(center_x, center_y+100, {origin: "viewport", sourceName: "finger2"})
+      .pointerMove(center_x, finger1_end,
+        {origin: "viewport", sourceName: "finger1"})
+      .pointerMove(center_x, finger2_end,
+        {origin: "viewport", sourceName: "finger2"})
       .pointerUp({sourceName: "finger1"})
       .pointerUp({sourceName: "finger2"})
       .send();
+}
+
+function pinchZoomIn() {
+  return pinchZoom();
+}
+
+function pinchZoomOut() {
+  return pinchZoom(false);
 }
 
 // If scrollbars affect layout (i.e. what the CSS Overflow spec calls "classic

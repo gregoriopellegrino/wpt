@@ -21,7 +21,16 @@
 <div class="large"></div>
 <script>
   window.onload = () => {
-    promise_test(async () => {
+    // pinchZoomOut() may not negate totally pinchZoomIn. A few retries should
+    // be sufficient to get back to a page scale of 1.
+    async function resetPinchZoom(max_rounds = 3) {
+      while (visualViewport.scale != 1 && max_rounds) {
+        await pinchZoomOut();
+        max_rounds -= 1;
+      }
+    }
+
+    async function test(add_event_listener_func) {
       await waitForCompositorCommit();
 
       await pinchZoomIn();
@@ -29,19 +38,39 @@
 
       const preScrollVisualViewportOffsetTop = visualViewport.offsetTop;
       const preScrollWindowScrollOffset = window.scrollY;
-      const scrollend_promise = new Promise((resolve) => {
-        visualViewport.addEventListener("scrollend", resolve);
-      });
+
+      const scrollend_promise = add_event_listener_func();
 
       const scrollAmount = 50;
       await touchScrollInTarget(scrollAmount, document.documentElement, "up");
       await scrollend_promise;
 
-      assert_less_than(visualViewport.offsetTop, preScrollVisualViewportOffsetTop,
+      assert_less_than(visualViewport.offsetTop,
+        preScrollVisualViewportOffsetTop,
         `visualViewport should be scrolled.`);
       assert_equals(window.scrollY, preScrollWindowScrollOffset,
         "the window should not scroll.");
+
+      await resetPinchZoom();
+      assert_equals(visualViewport.scale, 1, "page scale is reset.");
+    }
+
+    promise_test(async () => {
+      await test(() => {
+        return new Promise((resolve) => {
+          visualViewport.addEventListener("scrollend", resolve);
+        });
+      });
     }, "scrollend fires when visual viewport is panned.");
+
+    promise_test(async () => {
+      await test(() => {
+        return new Promise((resolve) => {
+          visualViewport.onscrollend = resolve;
+        });
+      });
+    }, "scrollend fires (via visualViewport.onscrollend) when visual " +
+       "viewport is panned.");
   }
 </script>
 </body>
