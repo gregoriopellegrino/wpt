@@ -12,6 +12,10 @@ const allWebNNOperandDataTypes = [
   'uint8'
 ];
 
+const floatingPointTypes = ['float32', 'float16'];
+
+const signedIntegerTypes = ['int32', 'int64', 'int8'];
+
 const unsignedLongType = 'unsigned long';
 
 const dimensions0D = [];
@@ -355,5 +359,50 @@ function validateOptionsAxes(operationName, inputRank) {
         }
       }
     }, `[${subOperationName}] DataError is expected if two or more values are same in the axes sequence`);
+  }
+}
+
+/**
+ * Validate a unary operation
+ * @param {String} operationName - An operation name
+ * @param {Array} supportedDataTypes - Data types supported by this operation
+ * @param {Boolean} isActivation - This operation can/cannot be built as an
+ *     activation
+ */
+function validateUnaryOperation(
+    operationName, supportedDataTypes, isActivation = false) {
+  if (navigator.ml === undefined) {
+    return;
+  }
+
+  promise_test(async t => {
+    for (let dataType of supportedDataTypes) {
+      for (let dimensions of allWebNNDimensionsArray) {
+        const input = builder.input(`input`, {dataType, dimensions});
+        const output = builder[operationName](input);
+        assert_equals(output.dataType(), dataType);
+        assert_array_equals(output.shape(), dimensions);
+      }
+    }
+  }, `[${operationName}] Test building an operator`);
+
+  if (isActivation) {
+    promise_test(async t => {
+      builder[operationName]();
+    }, `[${operationName}] Test building an activation`);
+  }
+
+  if (supportedDataTypes !== allWebNNOperandDataTypes) {
+    promise_test(async t => {
+      for (let dataType of allWebNNOperandDataTypes) {
+        if (supportedDataTypes.includes(dataType)) {
+          continue;
+        }
+        for (let dimensions of allWebNNDimensionsArray) {
+          const input = builder.input(`input`, {dataType, dimensions});
+          assert_throws_js(TypeError, () => builder[operationName](input));
+        }
+      }
+    }, `[${operationName}] Throw if the data type is not supported`);
   }
 }
